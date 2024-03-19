@@ -59,7 +59,7 @@ def get_amazon_best_sellers(file_path, affiliate_tag):
         return None
 
 # Local HTML file path and affiliate tag
-file_path = "C:\\Users\\luizm\\webscraper\\produtos_amazon\\Amazon.com.br Mais Vendidos_ Mouses de Computador - os mais vendidos na Amazon.com.br.html"
+file_path = "\Amazon.com.br Mais Vendidos_ Mouses de Computador - os mais vendidos na Amazon.com.br.html"
 affiliate_tag = "?tag=casaconfor086-20"
 
 # Get the best sellers data
