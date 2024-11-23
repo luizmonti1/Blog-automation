@@ -1,6 +1,9 @@
 import requests
 import json
+<<<<<<< HEAD
 import os
+=======
+>>>>>>> 3084c1a (Test commit)
 
 url = 'https://scrapeninja.p.rapidapi.com/scrape'
 

@@ -56,7 +56,10 @@ cover/
 *.pot
 
 # Django stuff:
+<<<<<<< HEAD
 *.log
+=======
+>>>>>>> 3084c1a (Test commit)
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -112,10 +115,16 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+<<<<<<< HEAD
 .env
 .venv
 env/
 venv/
+=======
+.env/
+.venv/
+env/
+>>>>>>> 3084c1a (Test commit)
 ENV/
 env.bak/
 venv.bak/
@@ -150,3 +159,18 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+<<<<<<< HEAD
+=======
+
+# API Keys and Environment Variables
+.env
+
+# Logs and Debug Files
+*.log
+logs/
+
+# Temporary and Output Data
+output/
+data/temp/
+*.csv
+>>>>>>> 3084c1a (Test commit)
