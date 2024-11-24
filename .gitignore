@@ -39,15 +39,11 @@ htmlcov/
 .tox/
 .nox/
 .coverage
-.coverage.*
-.cache
+.coverage.* 
 nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
+.cover/
+.cache/
 .pytest_cache/
-cover/
 
 # Logs and debug files
 *.log
@@ -73,7 +69,8 @@ ipython_config.py
 
 # API keys and sensitive files
 .env
-*.env
+.env.local
+!env.example
 *.key
 
 # Temporary files and data
@@ -81,6 +78,8 @@ output/
 data/temp/
 *.csv
 *.tmp
+!data/
+!data/seo_data.db
 
 # Django
 local_settings.py
@@ -109,7 +108,6 @@ target/
 
 # Static type analyzers
 .mypy_cache/
-.dmypy.json
 .pyre/
 .pytype/
 
@@ -130,6 +128,15 @@ cython_debug/
 .vscode/
 
 # Specific tool caches
-.pytest_cache/
 .dmypy.json
-dmypy.json
+
+# Keep folders in version control
+!.gitkeep
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux specific
+.vscode-server/
