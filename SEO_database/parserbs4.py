@@ -1,138 +1,164 @@
-import sqlite3
 import requests
-import random
-from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
+from bs4 import BeautifulSoup
+import json
 import re
+from urllib.parse import urljoin
 from collections import Counter
 from nltk.corpus import stopwords
-from nltk.util import ngrams
-import nltk
-import json
-import sys
-from pathlib import Path
+from nltk import download as nltk_download, word_tokenize, ngrams
+import sqlite3
+import logging
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import SEARCH_ENGINE_ID, setup_logger, GOOGLE_API_KEY
-# Add paths to sys.path for importing modules from different directories
-from scraper.google_search import BLOCK_LIST, get_main_page_url, perform_google_search  # Assuming this is the correct function name
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("optimized_scraper")
 
-# Download NLTK Portuguese stopwords
-nltk.download('stopwords')
+# Download NLTK data
+nltk_download('stopwords')
+nltk_download('punkt')
 
-# Database file path
-db_file_path = 'C://Users//luizm//webscraper//blog para casa//seo_data.db'
+# User-Agent rotation
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36"
+]
 
-# Connect to the SQLite database
-conn = sqlite3.connect(db_file_path)
-cursor = conn.cursor()
+HEADERS = {"User-Agent": USER_AGENTS[0]}
 
-# Query to fetch relevant fields from the database
-cursor.execute("SELECT title, meta_description, first_h1 FROM seo_data")
-rows = cursor.fetchall()
+# Database connection setup
+DB_FILE_PATH = "E:\Apps\Blog-automation-main\data\seo_data.db"
 
-# Initialize an empty string to aggregate text
-aggregated_text = ''
+def connect_to_database(db_file_path):
+    """Establish a connection to the SQLite database."""
+    try:
+        conn = sqlite3.connect(db_file_path)
+        logger.info("Connected to the database successfully.")
+        return conn
+    except sqlite3.Error as e:
+        logger.error(f"Database connection failed: {e}")
+        return None
 
-# Aggregate relevant text from each row
-for row in rows:
-    aggregated_text += ' '.join([str(field) for field in row if field])
+def fetch_page(url):
+    """Fetch the HTML content of a given URL."""
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        return response.text
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to fetch {url}: {e}")
+        return None
 
-def perform_google_search(query, start_index=1, num_results=10):  # noqa: F811
-    logger = setup_logger('search_logger', 'google_search.log')
-    logger.info(f"Performing search for query: {query}")
+def parse_metadata(soup):
+    """Extract metadata from the page."""
+    metadata = {
+        "title": soup.title.string if soup.title else "No title found",
+        "description": (
+            soup.find("meta", attrs={"name": "description"}) or
+            soup.find("meta", attrs={"property": "og:description"})
+        ),
+        "canonical": soup.find("link", rel="canonical"),
+    }
+    # Extract values
+    for key, value in metadata.items():
+        if value and hasattr(value, "get"):
+            metadata[key] = value.get("content", "No content found")
+    return metadata
 
-    results = []
-    total_results_fetched = 0
-    url = 'https://www.googleapis.com/customsearch/v1'
-    user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-        # Add more user agents here if needed
-    ]
+def parse_content(soup):
+    """Extract the main content using <article> or heuristics."""
+    article = soup.find("article")
+    if article:
+        return article.get_text(strip=True)
+    # Fallback: find the largest block of text
+    paragraphs = soup.find_all("p")
+    return max(paragraphs, key=lambda p: len(p.get_text()), default="").get_text(strip=True)
 
-    with requests.Session() as session:
-        while total_results_fetched < num_results:
-            headers = {
-                'User-Agent': random.choice(user_agents)
-            }
-            params = {
-                'q': f"{query} {BLOCK_LIST}",
-                'key': GOOGLE_API_KEY,
-                'cx': SEARCH_ENGINE_ID,
-                'start': start_index,
-                'gl': 'br',  # Geolocation set to Brazil
-                'lr': 'lang_pt',  # Language restrict to Portuguese
-            }
+def extract_links(soup, base_url):
+    """Extract and resolve all valid links on the page."""
+    links = []
+    for a_tag in soup.find_all("a", href=True):
+        href = a_tag["href"]
+        full_url = urljoin(base_url, href)
+        links.append(full_url)
+    return list(set(links))  # Remove duplicates
 
-            try:
-                response = session.get(url, headers=headers, params=params)
-                response.raise_for_status()
-                search_data = response.json()
-                search_results = search_data.get('items', [])
-
-                cache = {}  # Define the cache variable
-
-                for item in search_results:
-                    page_url = get_main_page_url(item['link'])
-                    if page_url not in cache:  # Check if URL is not in cache
-                        results.append({
-                            'link': page_url,
-                            'title': item.get('title'),
-                            'snippet': item.get('snippet')
-                        })
-                        cache[page_url] = True  # Add URL to cache
-                        total_results_fetched += 1
-                        if total_results_fetched == num_results:
-                            break
-
-                start_index += len(search_results)
-
-            except (HTTPError, ConnectionError, Timeout, RequestException) as err:
-                logger.error(f"Error during Google Search: {err}")
-                break
-
-    return results
-
-    
-
-# Function to clean and tokenize text
-def tokenize(text):
-    # Remove non-alphanumeric characters
+def tokenize_and_extract_keywords(text):
+    """Tokenize text and extract significant keywords."""
     text = re.sub(r'\W+', ' ', text.lower())
-    # Tokenize
-    tokens = text.split()
-    # Remove Portuguese stopwords
-    stop_words = set(stopwords.words('portuguese'))
-    tokens = [word for word in tokens if word not in stop_words and len(word) > 1]
-    return tokens
+    tokens = word_tokenize(text)
+    stop_words = set(stopwords.words("portuguese") + stopwords.words("english"))
+    filtered_tokens = [word for word in tokens if word not in stop_words and len(word) > 2]
+    bigrams = [' '.join(gram) for gram in ngrams(filtered_tokens, 2)]
+    trigrams = [' '.join(gram) for gram in ngrams(filtered_tokens, 3)]
+    return Counter(filtered_tokens + bigrams + trigrams).most_common(20)
 
-# Tokenize the aggregated text
-tokens = tokenize(aggregated_text)
+def scrape(url):
+    """Main scraper function."""
+    logger.info(f"Scraping {url}")
+    html = fetch_page(url)
+    if not html:
+        return None
 
-# Extract bi-grams and tri-grams
-bigrams = [' '.join(grams) for grams in ngrams(tokens, 2)]
-trigrams = [' '.join(grams) for grams in ngrams(tokens, 3)]
+    soup = BeautifulSoup(html, "html.parser")
 
-# Combine single words, bi-grams, and tri-grams
-all_keywords = tokens + bigrams + trigrams
+    # Parse metadata
+    metadata = parse_metadata(soup)
 
-# Count the frequency of each keyword/phrase
-word_freq = Counter(all_keywords)
+    # Parse main content
+    main_content = parse_content(soup)
 
-# Get the top keywords/phrase with frequencies
-top_keywords_with_freq = word_freq.most_common(30)
+    # Extract links
+    links = extract_links(soup, url)
 
-# File to save the results
-results_file_path = 'C://Users//luizm//webscraper//blog para casa//search_results.json'
+    # Analyze keywords
+    keywords = tokenize_and_extract_keywords(main_content)
 
-# Save results to a file
-with open(results_file_path, 'w', encoding='utf-8') as file:
-    for keyword, freq in top_keywords_with_freq:
-        results = perform_google_search(keyword, 10)
-        print(f"Saving results for '{keyword}'")
-        file.write(json.dumps({keyword: results}, indent=2))
-        file.write('\n')  # Newline for separation between keywords
+    # Compile results
+    return {
+        "url": url,
+        "metadata": metadata,
+        "content": main_content[:500],  # Limit content preview
+        "keywords": keywords,
+        "links": links[:10]  # Limit the number of links
+    }
 
-print(f"Search results saved to {results_file_path}")
+def fetch_and_save_results():
+    """Fetch data from the database and perform scraping."""
+    conn = connect_to_database(DB_FILE_PATH)
+    if not conn:
+        return
 
-# Close the database connection
-conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT title, meta_description, first_h1 FROM seo_data")
+        rows = cursor.fetchall()
+
+        aggregated_text = ' '.join(
+            ' '.join(map(str, row)) for row in rows if row
+        )
+
+        # Tokenize aggregated text and extract keywords
+        tokens = tokenize_and_extract_keywords(aggregated_text)
+
+        # File to save the results
+        results_file_path = "search_results.json"
+
+        # Save results to a file
+        with open(results_file_path, 'w', encoding='utf-8') as file:
+            for keyword, freq in tokens:
+                results = scrape(f"https://www.google.com/search?q={keyword}")
+                if results:
+                    logger.info(f"Saving results for '{keyword}'")
+                    file.write(json.dumps({keyword: results}, ensure_ascii=False, indent=4))
+                    file.write('\n')  # Newline for separation between keywords
+
+        logger.info(f"Search results saved to {results_file_path}")
+
+    except sqlite3.Error as e:
+        logger.error(f"Database query failed: {e}")
+
+    finally:
+        conn.close()
+
+if __name__ == "__main__":
+    fetch_and_save_results()

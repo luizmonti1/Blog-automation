@@ -1,2 +1,129 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Ensure Python files use LF line endings (Unix-style)
+*.py text eol=lf
+
+# Configuration files and scripts
+*.sh text eol=lf
+*.bash text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.ini text eol=lf
+*.toml text eol=lf
+*.conf text eol=lf
+
+# Documentation files
+*.md text eol=lf
+*.rst text eol=lf
+*.txt text eol=lf
+
+# Data files
+*.csv text eol=lf
+*.tsv text eol=lf
+*.xml text eol=lf
+*.sql text eol=lf
+
+# Jupyter notebooks
+*.ipynb text eol=lf merge=union
+
+# Web files
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+
+# Binary files
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.bmp binary
+*.tiff binary
+*.ico binary
+*.svg binary
+*.webp binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.bz2 binary
+*.xz binary
+*.7z binary
+*.rar binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+
+# Audio/Video files
+*.mp3 binary
+*.wav binary
+*.flac binary
+*.ogg binary
+*.mp4 binary
+*.avi binary
+*.mov binary
+*.wmv binary
+*.mkv binary
+
+# Compiled and object files
+*.o binary
+*.obj binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.a binary
+*.lib binary
+*.exe binary
+*.bin binary
+
+# Logs and temporary files
+*.log text
+*.tmp text
+*.bak text
+
+# IDE specific settings
+# Visual Studio Code
+.vscode/* text eol=lf
+*.code-workspace text eol=lf
+
+# JetBrains IDEs (PyCharm, IntelliJ)
+.idea/* text eol=lf
+*.iml text eol=lf
+
+# Python bytecode and caches
+__pycache__/* binary
+*.pyc binary
+*.pyo binary
+*.pyd binary
+
+# Environments
+.env text eol=lf
+*.env text eol=lf
+.venv/* binary
+
+# GitHub Actions workflows
+.github/workflows/* text eol=lf
+
+# Miscellaneous
+*.pdf binary
+*.doc binary
+*.docx binary
+*.ppt binary
+*.pptx binary
+*.xls binary
+*.xlsx binary
+
+# Sphinx documentation
+docs/_build/* binary
